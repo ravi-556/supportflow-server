@@ -1,0 +1,24 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: supportflow_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: supportflow
+      POSTGRES_PASSWORD: supportflow_dev
+      # Only takes effect on a fresh volume — this is what a clean checkout's
+      # first `docker compose up` provisions. Django's own migrations build
+      # the schema inside it (`python manage.py migrate`), not an init script.
+      POSTGRES_DB: supportflow_django
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supportflow -d supportflow_django"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

@@ -1,0 +1,64 @@
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.accounts import services
+from apps.accounts.models import Agent, Customer, Group
+from apps.accounts.permissions import IsAgent
+from apps.accounts.serializers import (
+    AgentLoginRequestSerializer,
+    AgentLoginResponseSerializer,
+    AgentOtpVerifyRequestSerializer,
+    AgentSerializer,
+    CustomerSerializer,
+    GroupSerializer,
+    TokenResponseSerializer,
+)
+
+
+class AgentLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        payload = AgentLoginRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        agent, code = services.agent_login(**payload.validated_data)
+        # DEV ONLY: no email/SMS provider wired up, so the code rides in the
+        # response instead of actually being sent. Remove before this touches
+        # anything but local dev.
+        out = AgentLoginResponseSerializer({"agent_id": agent.id, "otp_required": True, "dev_otp": code})
+        return Response(out.data)
+
+
+class AgentVerifyOtpView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        payload = AgentOtpVerifyRequestSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        agent, token = services.agent_verify_otp(**payload.validated_data)
+        out = TokenResponseSerializer({"access_token": token, "token_type": "bearer", "role": agent.role})
+        return Response(out.data)
+
+
+# --- Lookups (used by agent-side dropdowns/context — matches the old FastAPI lookups router) ---
+
+
+class AgentListView(ListAPIView):
+    permission_classes = [IsAgent]
+    serializer_class = AgentSerializer
+    queryset = Agent.objects.filter(deactivated_at__isnull=True)
+
+
+class GroupListView(ListAPIView):
+    permission_classes = [IsAgent]
+    serializer_class = GroupSerializer
+    queryset = Group.objects.all()
+
+
+class CustomerDetailView(RetrieveAPIView):
+    permission_classes = [IsAgent]
+    serializer_class = CustomerSerializer
+    queryset = Customer.objects.all()
+    lookup_url_kwarg = "customer_id"
