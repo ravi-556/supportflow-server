@@ -45,5 +45,7 @@ class CsatReviewView(APIView):
     def post(self, request, review_id):
         payload = CsatSubmitSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        review = services.submit_review(review_id, payload.validated_data["score"])
+        review = services.submit_review(
+            review_id, payload.validated_data["score"], payload.validated_data["comment"]
+        )
         return Response(CsatReviewSerializer(review).data)

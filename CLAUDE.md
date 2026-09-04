@@ -14,6 +14,10 @@ Product/implementation specs (PRD, feature gap analysis, Zendesk/Freshdesk resea
 - No hand-written SQL schema — `makemigrations`/`migrate` from empty is the only path to the schema. `ticket_no` is a real Postgres sequence, assigned explicitly in `services.py` (see `tickets/migrations/0002_ticket_no_sequence.py`), not an implicit default.
 - UUID primary keys are always DB-generated (`gen_random_uuid()` / `default=uuid.uuid4`) — never hand-type placeholder UUIDs in seed data.
 
+## Workflow
+
+- **Every feature is built on its own branch**, not directly on `main` — `git checkout -b feature/<name>` before starting, PRD spec in hand. Push it and open a PR on GitHub (`ravi-556/supportflow-server`) rather than merging locally. Don't merge or push to `main` without being asked.
+
 ## Dev environment
 
 ```bash

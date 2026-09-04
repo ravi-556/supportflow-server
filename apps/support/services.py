@@ -52,11 +52,12 @@ def get_review_or_404(review_id) -> Review:
     return review
 
 
-def submit_review(review_id, score: str) -> Review:
+def submit_review(review_id, score: float, comment: str = "") -> Review:
     review = get_review_or_404(review_id)
     if review.submitted_at is not None:
         raise ValidationError("This survey has already been submitted")
     review.score = score
+    review.comment = comment or None
     review.submitted_at = datetime.now(timezone.utc)
-    review.save(update_fields=["score", "submitted_at"])
+    review.save(update_fields=["score", "comment", "submitted_at"])
     return review
