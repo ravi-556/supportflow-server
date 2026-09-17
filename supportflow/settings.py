@@ -90,6 +90,15 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # No DEFAULT_THROTTLE_CLASSES on purpose — throttling is opt-in per view.
+    # Only the AllowAny auth/OTP endpoints carry apps.accounts.throttles.
+    # AuthRateThrottle (scope "auth"); signed-in agent/customer traffic is
+    # left alone. 10/min is loose enough that manual curl/Postman testing
+    # against localhost doesn't trip it, tight enough that password and OTP
+    # brute forcing from one IP is not viable.
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "10/min",
+    },
 }
 
 # --- CORS ---
