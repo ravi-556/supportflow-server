@@ -6,6 +6,7 @@ from apps.accounts import services as accounts_services
 from apps.accounts.permissions import IsCustomer
 from apps.accounts.security import create_access_token
 from apps.accounts.serializers import GuestTicketOtpRequestResponseSerializer, GuestTicketOtpRequestSerializer
+from apps.accounts.throttles import AuthRateThrottle
 from apps.tickets import services
 from apps.tickets.models import PriorityLevel, ReplyByRole, TicketSource
 from apps.tickets.serializers import (
@@ -94,6 +95,9 @@ class GuestTicketOtpRequestView(APIView):
     very first contact, not just returning ones."""
 
     permission_classes = [AllowAny]
+    # get_or_create means an unthrottled caller can also mass-create Customer
+    # rows here, not just spam OTP emails.
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = GuestTicketOtpRequestSerializer(data=request.data)
@@ -108,6 +112,9 @@ class GuestTicketSubmitView(APIView):
     guest ticket is already there when they check My Tickets later."""
 
     permission_classes = [AllowAny]
+    # Verifies an OTP *and* issues an access token — same brute-force surface
+    # as the dedicated verify endpoints, plus anonymous ticket creation.
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = GuestTicketSubmitSerializer(data=request.data)

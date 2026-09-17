@@ -9,10 +9,14 @@ from apps.accounts.serializers import (
     CustomerOtpVerifyRequestSerializer,
     TokenResponseSerializer,
 )
+from apps.accounts.throttles import AuthRateThrottle
 
 
 class CustomerRequestOtpView(APIView):
     permission_classes = [AllowAny]
+    # Unthrottled, this both spams a customer's inbox and lets an attacker mint
+    # unlimited fresh OTPs to sidestep the per-record OTP_MAX_ATTEMPTS cap.
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = CustomerOtpRequestSerializer(data=request.data)
@@ -24,6 +28,7 @@ class CustomerRequestOtpView(APIView):
 
 class CustomerVerifyOtpView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = CustomerOtpVerifyRequestSerializer(data=request.data)

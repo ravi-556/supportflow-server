@@ -15,10 +15,14 @@ from apps.accounts.serializers import (
     GroupSerializer,
     TokenResponseSerializer,
 )
+from apps.accounts.throttles import AuthRateThrottle
 
 
 class AgentLoginView(APIView):
     permission_classes = [AllowAny]
+    # Password check with no per-account lockout — the per-IP throttle is the
+    # only thing standing between this and offline-speed credential stuffing.
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = AgentLoginRequestSerializer(data=request.data)
@@ -33,6 +37,9 @@ class AgentLoginView(APIView):
 
 class AgentVerifyOtpView(APIView):
     permission_classes = [AllowAny]
+    # OTP_MAX_ATTEMPTS caps guesses against one OTP record; this caps how fast
+    # an attacker can burn through freshly issued ones.
+    throttle_classes = [AuthRateThrottle]
 
     def post(self, request):
         payload = AgentOtpVerifyRequestSerializer(data=request.data)
