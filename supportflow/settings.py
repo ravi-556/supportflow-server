@@ -95,6 +95,15 @@ REST_FRAMEWORK = {
     # in the view — DRF only auto-paginates generics.
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 25,
+    # No DEFAULT_THROTTLE_CLASSES on purpose — throttling is opt-in per view.
+    # Only the AllowAny auth/OTP endpoints carry apps.accounts.throttles.
+    # AuthRateThrottle (scope "auth"); signed-in agent/customer traffic is
+    # left alone. 10/min is loose enough that manual curl/Postman testing
+    # against localhost doesn't trip it, tight enough that password and OTP
+    # brute forcing from one IP is not viable.
+    "DEFAULT_THROTTLE_RATES": {
+        "auth": "10/min",
+    },
 }
 
 # --- CORS ---
