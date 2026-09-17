@@ -76,15 +76,17 @@ class TicketCreateSerializer(serializers.Serializer):
 class TicketUpdateSerializer(serializers.Serializer):
     """All fields optional — PATCH semantics, only send what changed.
 
-    changed_by_agent_id isn't a model field; it's who to attribute the
-    resulting ticket_activities rows to. Stand-in for real auth context.
+    Note `agent_id` here is the ticket's *assignee* (an agent may legitimately
+    reassign a ticket to any other agent). Who the resulting
+    ticket_activities rows get attributed to is deliberately NOT a field on
+    this serializer: it's bound server-side to the authenticated JWT
+    principal in the view, so the audit trail can't be spoofed.
     """
 
     status = serializers.ChoiceField(choices=Ticket.status.field.choices, required=False)
     priority = serializers.ChoiceField(choices=Ticket.priority.field.choices, required=False)
     agent_id = serializers.UUIDField(required=False, allow_null=True)
     group_id = serializers.UUIDField(required=False, allow_null=True)
-    changed_by_agent_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 class MessageSerializer(serializers.ModelSerializer):
@@ -106,6 +108,9 @@ class MessageCreateSerializer(serializers.Serializer):
     description = serializers.CharField()
     reply_by = serializers.ChoiceField(choices=ReplyByRole.choices)
     customer_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+    # Required (by validate() below) when reply_by=agent, but its *value* is
+    # not trusted in that case — the agent-facing view overrides it with the
+    # authenticated principal's id so an agent can't post as someone else.
     agent_id = serializers.UUIDField(required=False, allow_null=True, default=None)
     is_private = serializers.BooleanField(default=False)
     # PRD: @mentions only exist inside private notes. Real @name parsing is
