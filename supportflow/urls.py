@@ -29,3 +29,10 @@ urlpatterns = [
     path("api/v1/agent/", include(agent_urlpatterns)),
     path("api/v1/customer/", include(customer_urlpatterns)),
 ]
+
+# JSON-only API: a routing-level 404 (no urlpattern matched) and a true
+# unhandled 500 never reach a DRF view, so DRF's exception handler can't
+# render them — without these they'd fall back to Django's HTML error pages.
+# Only used when DEBUG = False; the debug pages still apply in local dev.
+handler404 = "apps.core.views.json_404"
+handler500 = "apps.core.views.json_500"
