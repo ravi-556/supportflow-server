@@ -10,6 +10,18 @@ SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DEBUG", "0") == "1"
 ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
+# --- Production-only security settings ---
+# Gated on DEBUG so local dev over plain HTTP (runserver 127.0.0.1:8000) keeps
+# working, while any non-DEBUG deployment picks these up automatically instead
+# of relying on someone remembering to flip them by hand.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
