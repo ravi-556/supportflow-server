@@ -3,7 +3,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAgent
 from apps.tickets import services
-from apps.tickets.models import TicketActivity
+from apps.tickets.models import ReplyByRole, TicketActivity
 from apps.tickets.serializers import (
     MessageCreateSerializer,
     MessageSerializer,
@@ -49,7 +49,9 @@ class TicketDetailView(APIView):
             priority=data.get("priority"),
             agent_id=data["agent_id"] if "agent_id" in data else ...,
             group_id=data["group_id"] if "group_id" in data else ...,
-            changed_by_agent_id=data.get("changed_by_agent_id"),
+            # Audit attribution comes from the JWT principal, never the request
+            # body — otherwise any agent could pin a change on another agent.
+            changed_by_agent_id=request.user.id,
         )
         return Response(TicketDetailSerializer(ticket).data)
 
@@ -64,7 +66,16 @@ class TicketMessageListView(APIView):
     def post(self, request, ticket_id):
         payload = MessageCreateSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        message = services.create_message(ticket_id, **payload.validated_data)
+        data = dict(payload.validated_data)
+        if data["reply_by"] == ReplyByRole.AGENT:
+            # An agent reply is always authored by the caller. The serializer
+            # only checks the *shape* (agent_id present, customer_id absent);
+            # binding it to the authenticated principal is an authorization
+            # concern, so it belongs here, not in validate(). reply_by
+            # customer/system are left alone on purpose — an agent legitimately
+            # logs messages on a customer's behalf (e.g. a phone call).
+            data["agent_id"] = request.user.id
+        message = services.create_message(ticket_id, **data)
         return Response(MessageSerializer(message).data, status=201)
 
 
