@@ -101,6 +101,11 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    # Generic views (ListAPIView & co.) pick this up for free. The plain
+    # APIView list endpoints paginate explicitly with PageNumberPagination()
+    # in the view — DRF only auto-paginates generics.
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 25,
     # No DEFAULT_THROTTLE_CLASSES on purpose — throttling is opt-in per view.
     # Only the AllowAny auth/OTP endpoints carry apps.accounts.throttles.
     # AuthRateThrottle (scope "auth"); signed-in agent/customer traffic is

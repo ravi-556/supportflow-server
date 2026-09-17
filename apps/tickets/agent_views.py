@@ -1,3 +1,4 @@
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -23,7 +24,12 @@ class TicketListView(APIView):
         status_filter = request.query_params.get("status")
         if status_filter:
             qs = qs.filter(status=status_filter)
-        return Response(TicketListItemSerializer(qs, many=True).data)
+        # Plain APIView gets no free pagination from DEFAULT_PAGINATION_CLASS
+        # (only generics do), so drive the paginator by hand. This is
+        # HTTP-layer mechanics, deliberately not pushed into services.py.
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        return paginator.get_paginated_response(TicketListItemSerializer(page, many=True).data)
 
     def post(self, request):
         payload = TicketCreateSerializer(data=request.data)

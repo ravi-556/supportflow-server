@@ -55,13 +55,16 @@ class AgentVerifyOtpView(APIView):
 class AgentListView(ListAPIView):
     permission_classes = [IsAgent]
     serializer_class = AgentSerializer
-    queryset = Agent.objects.filter(deactivated_at__isnull=True)
+    # Paginated by REST_FRAMEWORK["DEFAULT_PAGINATION_CLASS"]; the explicit
+    # order_by is what keeps page 2 from repeating rows from page 1 (an
+    # unordered queryset has no stable LIMIT/OFFSET window).
+    queryset = Agent.objects.filter(deactivated_at__isnull=True).order_by("email")
 
 
 class GroupListView(ListAPIView):
     permission_classes = [IsAgent]
     serializer_class = GroupSerializer
-    queryset = Group.objects.all()
+    queryset = Group.objects.order_by("name")
 
 
 class CustomerDetailView(RetrieveAPIView):

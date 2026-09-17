@@ -1,3 +1,4 @@
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,7 +13,11 @@ class KbArticleListView(APIView):
     def get(self, request):
         query = request.query_params.get("q", "")
         articles = services.search_articles(query)
-        return Response(FaqListItemSerializer(articles, many=True).data)
+        # Public endpoint, so this is also the cheap defence against an
+        # unbounded scan of every published article on a blank `q`.
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(articles, request, view=self)
+        return paginator.get_paginated_response(FaqListItemSerializer(page, many=True).data)
 
 
 class KbArticlePopularView(APIView):
