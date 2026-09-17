@@ -1,3 +1,4 @@
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -27,7 +28,12 @@ class CustomerTicketListView(APIView):
     def get(self, request):
         status_group = request.query_params.get("status_group")
         tickets = services.customer_ticket_queryset(request.user.id, status_group=status_group)
-        return Response(CustomerTicketListItemSerializer(tickets, many=True).data)
+        # Manual paginator: plain APIView doesn't auto-paginate off
+        # DEFAULT_PAGINATION_CLASS the way the generics do. The queryset stays
+        # a queryset all the way here, so the LIMIT/OFFSET happens in Postgres.
+        paginator = PageNumberPagination()
+        page = paginator.paginate_queryset(tickets, request, view=self)
+        return paginator.get_paginated_response(CustomerTicketListItemSerializer(page, many=True).data)
 
     def post(self, request):
         payload = CustomerTicketCreateSerializer(data=request.data)
