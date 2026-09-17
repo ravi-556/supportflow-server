@@ -1,4 +1,3 @@
-from django.contrib import admin
 from django.db import connection
 from django.http import JsonResponse
 from django.urls import include, path
@@ -26,7 +25,6 @@ customer_urlpatterns = [
 ]
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
     path("health", health),
     path("api/v1/agent/", include(agent_urlpatterns)),
     path("api/v1/customer/", include(customer_urlpatterns)),

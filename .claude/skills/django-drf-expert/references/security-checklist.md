@@ -380,23 +380,40 @@ MEDIA_URL = '/media/'
 
 ### Rate Limiting
 
-```bash
-pip install django-ratelimit
-```
+This is a DRF-only API — no HTML login view exists to decorate — so use DRF's built-in throttle classes, not `django-ratelimit` (that package targets plain Django views and adds a dependency this project doesn't need). No Redis is installed here either (see project CLAUDE.md), so throttle state lives in Django's default `LocMemCache` — fine for a single dev/worker process, but note it's per-process: under multi-worker gunicorn each worker gets its own counter, so the effective limit becomes `rate × worker count` until a shared cache backend (e.g. Redis) is introduced.
 
 ```python
-from django_ratelimit.decorators import ratelimit
+# apps/accounts/throttles.py
+from rest_framework.throttling import AnonRateThrottle
 
-# Limit login attempts
-@ratelimit(key='ip', rate='5/m', block=True)
-def login_view(request):
-    ...
+class AuthRateThrottle(AnonRateThrottle):
+    """Scoped throttle for AllowAny auth/OTP endpoints (login, OTP request/verify,
+    guest ticket submission). Overrides get_cache_key to key on IP unconditionally —
+    the stock AnonRateThrottle returns None (unthrottled) whenever
+    request.user.is_authenticated, and JWTAuthentication runs before permission
+    checks, so attaching *any* valid Bearer token (e.g. one minted from a
+    throwaway account) would otherwise switch the limit off entirely on an
+    AllowAny view."""
+    scope = "auth"
 
-# Limit API calls
-@ratelimit(key='user', rate='100/h', block=True)
-def api_endpoint(request):
+    def get_cache_key(self, request, view):
+        return self.cache_format % {"scope": self.scope, "ident": self.get_ident(request)}
+
+# settings.py
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {
+        'auth': '10/min',
+    },
+}
+
+# apps/accounts/agent_views.py
+class AgentLoginView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [AuthRateThrottle]
     ...
 ```
+
+**Rule**: Scope throttles to the specific `AllowAny` views that need them (`throttle_classes` per view) rather than a blanket `DEFAULT_THROTTLE_CLASSES` — that would also throttle normal authenticated traffic. If a bad-token bypass matters for a given view (it does for any `AllowAny` auth endpoint), don't rely on `AnonRateThrottle` as-is — override `get_cache_key` as above.
 
 ## Security Checklist
 
