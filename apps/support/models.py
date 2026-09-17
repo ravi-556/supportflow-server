@@ -13,11 +13,6 @@ class FaqVisibility(models.TextChoices):
     PRIVATE = "private"
 
 
-class ReviewScore(models.TextChoices):
-    GOOD = "good"
-    BAD = "bad"
-
-
 class Review(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ticket = models.ForeignKey("tickets.Ticket", on_delete=models.CASCADE, related_name="reviews")
@@ -29,9 +24,12 @@ class Review(models.Model):
     )
     sent_at = models.DateTimeField(null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
-    # PRD §13.5: real CSAT is binary (Good/Bad), not a star rating — null
-    # until submitted.
-    score = models.CharField(max_length=4, choices=ReviewScore.choices, null=True, blank=True)
+    # PRD §13.5 revision: graded 1-5 score (Freshdesk's model), not binary
+    # Good/Bad — reverted to the FloatField this column already had before
+    # CSAT was ever spec'd. Whole-number steps only (UI submits 1/2/3/4/5);
+    # range validation lives in the serializer, not the column type.
+    score = models.FloatField(null=True, blank=True)
+    comment = models.TextField(null=True, blank=True)
 
     class Meta:
         db_table = "reviews"

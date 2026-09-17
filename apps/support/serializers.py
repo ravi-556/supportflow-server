@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from apps.support.models import Faq, Review, ReviewScore
+from apps.support.models import Faq, Review
 
 
 class FaqListItemSerializer(serializers.ModelSerializer):
@@ -22,7 +22,7 @@ class CsatReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Review
-        fields = ["id", "ticket_no", "ticket_subject", "score", "submitted"]
+        fields = ["id", "ticket_no", "ticket_subject", "score", "comment", "submitted"]
 
     def get_ticket_no(self, obj) -> int:
         return obj.ticket.ticket_no
@@ -37,4 +37,5 @@ class CsatReviewSerializer(serializers.ModelSerializer):
 class CsatSubmitSerializer(serializers.Serializer):
     # No ticket_id/customer_id — already fixed by which review row the URL
     # names.
-    score = serializers.ChoiceField(choices=ReviewScore.choices)
+    score = serializers.FloatField(min_value=1, max_value=5)
+    comment = serializers.CharField(required=False, allow_blank=True, default="")

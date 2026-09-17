@@ -53,7 +53,12 @@ class TicketDetailSerializer(TicketListItemSerializer):
         review = obj.reviews.first()
         if review is None:
             return None
-        return {"review_id": str(review.id), "submitted": review.submitted_at is not None, "score": review.score}
+        return {
+            "review_id": str(review.id),
+            "submitted": review.submitted_at is not None,
+            "score": review.score,
+            "comment": review.comment,
+        }
 
 
 class TicketCreateSerializer(serializers.Serializer):
