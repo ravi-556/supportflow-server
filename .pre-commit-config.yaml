@@ -20,6 +20,34 @@ repos:
         args: [--fix]
       - id: ruff-format
 
+  - repo: https://github.com/PyCQA/bandit
+    rev: "1.9.4"
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        # The baseline is the accepted-known list (docs' illustrative
+        # examples, test-fixture passwords, the local-only dev DB password
+        # in docker-compose.yml) — anything NOT already in it fails the
+        # commit. Regenerate after reviewing a new hit:
+        #   .venv/bin/detect-secrets scan --exclude-files '\.venv/' --exclude-files '\.claude/worktrees/' > .secrets.baseline
+
+  # commit-msg stage — a different git hook than the rest of this file
+  # (which all run on `pre-commit`). Needs its own install:
+  #   .venv/bin/pre-commit install --hook-type commit-msg
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: ["feat", "fix", "chore", "docs", "test", "refactor", "perf", "ci", "style", "build"]
+
   # Local, not a hosted repo — these just shell out to this project's own
   # manage.py, so there's nothing to fetch or pin.
   - repo: local
