@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from django.db.models import F, Q
 from rest_framework.exceptions import NotFound, ValidationError
@@ -58,6 +58,6 @@ def submit_review(review_id, score: float, comment: str = "") -> Review:
         raise ValidationError("This survey has already been submitted")
     review.score = score
     review.comment = comment or None
-    review.submitted_at = datetime.now(timezone.utc)
+    review.submitted_at = datetime.now(UTC)
     review.save(update_fields=["score", "comment", "submitted_at"])
     return review

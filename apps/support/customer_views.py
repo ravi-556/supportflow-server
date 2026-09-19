@@ -4,7 +4,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.support import services
-from apps.support.serializers import CsatReviewSerializer, CsatSubmitSerializer, FaqDetailSerializer, FaqListItemSerializer
+from apps.support.serializers import (
+    CsatReviewSerializer,
+    CsatSubmitSerializer,
+    FaqDetailSerializer,
+    FaqListItemSerializer,
+)
 
 
 class KbArticleListView(APIView):
@@ -50,7 +55,5 @@ class CsatReviewView(APIView):
     def post(self, request, review_id):
         payload = CsatSubmitSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        review = services.submit_review(
-            review_id, payload.validated_data["score"], payload.validated_data["comment"]
-        )
+        review = services.submit_review(review_id, payload.validated_data["score"], payload.validated_data["comment"])
         return Response(CsatReviewSerializer(review).data)

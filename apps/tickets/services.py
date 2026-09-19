@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from django.db import connection, transaction
 from django.shortcuts import get_object_or_404
@@ -75,7 +75,9 @@ def _next_ticket_no() -> int:
 
 
 @transaction.atomic
-def create_ticket(*, subject, customer_id, priority, ticket_type, source, group_id, agent_id, initial_message) -> Ticket:
+def create_ticket(
+    *, subject, customer_id, priority, ticket_type, source, group_id, agent_id, initial_message
+) -> Ticket:
     """PRD §3.1/§3.6: create the ticket, its first message, then (eventually)
     run create-time automation rules — automation execution is Phase 3, not
     built yet; this lays the ticket/message half of that flow."""
@@ -107,7 +109,9 @@ def create_ticket(*, subject, customer_id, priority, ticket_type, source, group_
 
 
 @transaction.atomic
-def update_ticket(ticket_id, *, status=None, priority=None, agent_id=..., group_id=..., changed_by_agent_id=None) -> Ticket:
+def update_ticket(
+    ticket_id, *, status=None, priority=None, agent_id=..., group_id=..., changed_by_agent_id=None
+) -> Ticket:
     """PRD §5.2 A2 actions: Change Status / Change Priority / Change Assignee.
     Each field that actually changes writes its own ticket_activities row —
     the audit-trail requirement in PRD §8.4/§14. `agent_id`/`group_id` use
@@ -115,7 +119,7 @@ def update_ticket(ticket_id, *, status=None, priority=None, agent_id=..., group_
     unassign) is distinguishable from "field omitted from the PATCH".
     """
     ticket = get_ticket_or_404(ticket_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if status is not None and status != ticket.status:
         old_status, new_status = ticket.status, status
@@ -175,7 +179,9 @@ def update_ticket(ticket_id, *, status=None, priority=None, agent_id=..., group_
 
 
 @transaction.atomic
-def create_message(ticket_id, *, description, reply_by, customer_id, agent_id, is_private, mentioned_agent_ids) -> Message:
+def create_message(
+    ticket_id, *, description, reply_by, customer_id, agent_id, is_private, mentioned_agent_ids
+) -> Message:
     """PRD §3.3/§3.5/§3.8/§4.2-4.3:
     - first public reply sets ticket.first_responded_at (first-response SLA fulfilled)
     - a customer reply on a Pending/Resolved/Closed ticket forces status back to Open
@@ -194,7 +200,7 @@ def create_message(ticket_id, *, description, reply_by, customer_id, agent_id, i
     )
 
     if not is_private and reply_by == ReplyByRole.AGENT and ticket.first_responded_at is None:
-        ticket.first_responded_at = datetime.now(timezone.utc)
+        ticket.first_responded_at = datetime.now(UTC)
         ticket.save(update_fields=["first_responded_at"])
 
     if reply_by == ReplyByRole.CUSTOMER and ticket.status in (

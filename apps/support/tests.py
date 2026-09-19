@@ -6,7 +6,7 @@ review's unguessable UUID is the whole access control), and it's also the pair
 of endpoints that broke when JWTAuthentication used to raise on a stale token.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from django.test import TestCase
 from rest_framework.exceptions import NotFound, ValidationError
@@ -38,7 +38,7 @@ def make_article(
         status=status,
         visibility=visibility,
         view_count=view_count,
-        published_at=datetime.now(timezone.utc),
+        published_at=datetime.now(UTC),
     )
 
 
@@ -180,7 +180,7 @@ class PublicKbEndpointTests(APITestCase):
         response = self.client.get(KB_LIST_URL)
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([a["id"] for a in response.data], [str(self.article.id)])
+        self.assertEqual([a["id"] for a in response.data["results"]], [str(self.article.id)])
 
     def test_list_is_reachable_with_a_stale_token(self):
         response = self.client.get(KB_LIST_URL, HTTP_AUTHORIZATION="Bearer stale.garbage.token")

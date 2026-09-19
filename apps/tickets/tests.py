@@ -122,13 +122,9 @@ class UpdateTicketServiceTests(TestCase):
         )
 
     def test_status_change_writes_a_status_change_activity(self):
-        services.update_ticket(
-            self.ticket.id, status=TicketStatus.CLOSED, changed_by_agent_id=self.agent.id
-        )
+        services.update_ticket(self.ticket.id, status=TicketStatus.CLOSED, changed_by_agent_id=self.agent.id)
 
-        activity = TicketActivity.objects.get(
-            ticket=self.ticket, action_type=ActivityActionType.STATUS_CHANGE
-        )
+        activity = TicketActivity.objects.get(ticket=self.ticket, action_type=ActivityActionType.STATUS_CHANGE)
         self.assertEqual(activity.status_change, "open -> closed")
         self.assertEqual(activity.agent_id, self.agent.id)
 
@@ -175,9 +171,7 @@ class UpdateTicketServiceTests(TestCase):
     def test_priority_change_writes_a_priority_change_activity(self):
         services.update_ticket(self.ticket.id, priority=PriorityLevel.URGENT)
 
-        activity = TicketActivity.objects.get(
-            ticket=self.ticket, action_type=ActivityActionType.PRIORITY_CHANGE
-        )
+        activity = TicketActivity.objects.get(ticket=self.ticket, action_type=ActivityActionType.PRIORITY_CHANGE)
         self.assertEqual(activity.priority_change, "medium -> urgent")
 
     def test_assignment_change_writes_an_assignment_activity(self):
@@ -263,9 +257,7 @@ class CreateMessageServiceTests(TestCase):
 
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, TicketStatus.OPEN)
-        reopen = TicketActivity.objects.filter(
-            ticket=self.ticket, status_change="-> open (customer reply)"
-        )
+        reopen = TicketActivity.objects.filter(ticket=self.ticket, status_change="-> open (customer reply)")
         self.assertEqual(reopen.count(), 1)
         self.assertEqual(reopen.get().action_type, ActivityActionType.STATUS_CHANGE)
 
@@ -283,9 +275,7 @@ class CreateMessageServiceTests(TestCase):
         self.ticket.refresh_from_db()
         self.assertEqual(self.ticket.status, TicketStatus.OPEN)
         self.assertFalse(
-            TicketActivity.objects.filter(
-                ticket=self.ticket, action_type=ActivityActionType.STATUS_CHANGE
-            ).exists()
+            TicketActivity.objects.filter(ticket=self.ticket, action_type=ActivityActionType.STATUS_CHANGE).exists()
         )
 
     def test_agent_reply_does_not_reopen_a_resolved_ticket(self):
@@ -367,18 +357,16 @@ class AgentTicketEndpointTests(APITestCase):
         response = self.client.get(AGENT_TICKETS_URL, HTTP_AUTHORIZATION=f"Bearer {self.agent_token}")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["ticket_no"], self.ticket.ticket_no)
-        self.assertEqual(response.data[0]["customer_email"], self.customer.email)
+        self.assertEqual(response.data["count"], 1)
+        self.assertEqual(response.data["results"][0]["ticket_no"], self.ticket.ticket_no)
+        self.assertEqual(response.data["results"][0]["customer_email"], self.customer.email)
 
     def test_list_status_filter(self):
         services.update_ticket(self.ticket.id, status=TicketStatus.CLOSED)
 
-        response = self.client.get(
-            f"{AGENT_TICKETS_URL}?status=open", HTTP_AUTHORIZATION=f"Bearer {self.agent_token}"
-        )
+        response = self.client.get(f"{AGENT_TICKETS_URL}?status=open", HTTP_AUTHORIZATION=f"Bearer {self.agent_token}")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, [])
+        self.assertEqual(response.data["results"], [])
 
     def test_agent_can_see_any_customers_ticket(self):
         response = self.client.get(
@@ -450,7 +438,7 @@ class CustomerTicketEndpointTests(APITestCase):
         response = self.client.get(CUSTOMER_TICKETS_URL, HTTP_AUTHORIZATION=f"Bearer {self.token}")
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual([t["id"] for t in response.data], [str(self.ticket.id)])
+        self.assertEqual([t["id"] for t in response.data["results"]], [str(self.ticket.id)])
 
     def test_another_customers_ticket_is_404_not_403(self):
         """PRD §13.3: a wrong owner must be indistinguishable from a

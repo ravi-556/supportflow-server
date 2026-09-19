@@ -44,6 +44,4 @@ class JsonErrorHandlerTests(SimpleTestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response["Content-Type"], "application/json")
-        self.assertEqual(
-            json.loads(response.content), {"error": "Internal server error"}
-        )
+        self.assertEqual(json.loads(response.content), {"error": "Internal server error"})

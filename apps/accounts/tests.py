@@ -9,7 +9,7 @@ regression guard for exactly that.
 """
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import jwt
 from django.conf import settings
@@ -19,7 +19,7 @@ from rest_framework.test import APITestCase
 
 from apps.accounts.authentication import Principal
 from apps.accounts.models import Agent, AgentRole, Customer, OtpCode, OtpPurpose
-from apps.accounts.security import create_access_token, hash_password, hash_otp
+from apps.accounts.security import create_access_token, hash_otp, hash_password
 from apps.accounts.throttles import AuthRateThrottle
 
 # An AllowAny endpoint (apps.support.customer_views.KbArticleListView) and two
@@ -48,7 +48,7 @@ def make_customer(email="customer@example.com") -> Customer:
 def expired_token(*, subject: str, role: str) -> str:
     """A token that was validly signed but whose exp is in the past — what a
     week-old localStorage entry actually looks like."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return jwt.encode(
         {"sub": subject, "role": role, "iat": now - timedelta(hours=2), "exp": now - timedelta(hours=1)},
         settings.JWT_SECRET_KEY,
@@ -57,7 +57,7 @@ def expired_token(*, subject: str, role: str) -> str:
 
 
 def wrong_secret_token(*, subject: str, role: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     return jwt.encode(
         {"sub": subject, "role": role, "iat": now, "exp": now + timedelta(hours=1)},
         "not-the-real-signing-key",
@@ -175,12 +175,15 @@ class AgentLoginFlowTests(APITestCase):
     PASSWORD = "correct-horse-battery"
 
     def setUp(self):
+        # AuthRateThrottle's counters live in the process-global cache, not
+        # the per-test DB transaction — without clearing it, an earlier test
+        # class's requests to this same "auth"-scoped endpoint bleed into
+        # this one and turn an expected 200/400/401 into a 429.
+        cache.clear()
         self.agent = make_agent(password=self.PASSWORD)
 
     def _login(self):
-        return self.client.post(
-            self.LOGIN_URL, {"email": self.agent.email, "password": self.PASSWORD}, format="json"
-        )
+        return self.client.post(self.LOGIN_URL, {"email": self.agent.email, "password": self.PASSWORD}, format="json")
 
     def test_login_then_verify_issues_a_working_token(self):
         login = self._login()
@@ -200,20 +203,14 @@ class AgentLoginFlowTests(APITestCase):
 
     def test_verify_consumes_the_code_so_it_cannot_be_replayed(self):
         code = self._login().data["dev_otp"]
-        first = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json"
-        )
+        first = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json")
         self.assertEqual(first.status_code, 200)
 
-        replay = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json"
-        )
+        replay = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json")
         self.assertEqual(replay.status_code, 400)
 
     def test_wrong_password_is_401(self):
-        response = self.client.post(
-            self.LOGIN_URL, {"email": self.agent.email, "password": "wrong"}, format="json"
-        )
+        response = self.client.post(self.LOGIN_URL, {"email": self.agent.email, "password": "wrong"}, format="json")
         self.assertEqual(response.status_code, 401)
 
     def test_unknown_email_is_401(self):
@@ -228,34 +225,26 @@ class AgentLoginFlowTests(APITestCase):
 
     def test_wrong_code_is_400_and_increments_attempts(self):
         self._login()
-        response = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": "000000"}, format="json"
-        )
+        response = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": "000000"}, format="json")
         self.assertEqual(response.status_code, 400)
         self.assertEqual(OtpCode.objects.get().attempts, 1)
 
     def test_expired_code_is_400(self):
         code = self._login().data["dev_otp"]
-        OtpCode.objects.update(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
+        OtpCode.objects.update(expires_at=datetime.now(UTC) - timedelta(minutes=1))
 
-        response = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json"
-        )
+        response = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_too_many_attempts_is_400_even_with_the_right_code(self):
         code = self._login().data["dev_otp"]
         OtpCode.objects.update(attempts=settings.OTP_MAX_ATTEMPTS)
 
-        response = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json"
-        )
+        response = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": code}, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_verify_without_any_pending_code_is_400(self):
-        response = self.client.post(
-            self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": "123456"}, format="json"
-        )
+        response = self.client.post(self.VERIFY_URL, {"agent_id": str(self.agent.id), "code": "123456"}, format="json")
         self.assertEqual(response.status_code, 400)
 
     def test_agent_code_cannot_be_redeemed_on_the_customer_endpoint(self):
@@ -276,6 +265,9 @@ class CustomerOtpFlowTests(APITestCase):
     VERIFY_URL = "/api/v1/customer/auth/verify-otp"
 
     def setUp(self):
+        # See AgentLoginFlowTests.setUp — same shared "auth"-scope throttle
+        # counter, needs clearing per test for the same reason.
+        cache.clear()
         self.customer = make_customer()
 
     def test_request_then_verify_issues_a_working_token(self):
@@ -322,7 +314,7 @@ class CustomerOtpFlowTests(APITestCase):
 
     def test_expired_code_is_400(self):
         requested = self.client.post(self.REQUEST_URL, {"email": self.customer.email}, format="json")
-        OtpCode.objects.update(expires_at=datetime.now(timezone.utc) - timedelta(seconds=1))
+        OtpCode.objects.update(expires_at=datetime.now(UTC) - timedelta(seconds=1))
 
         response = self.client.post(
             self.VERIFY_URL,
@@ -349,6 +341,10 @@ class CustomerOtpFlowTests(APITestCase):
 
 class OtpStorageTests(TestCase):
     """The raw code must never hit the database — only its hash."""
+
+    def setUp(self):
+        # Same shared "auth"-scope throttle counter as AgentLoginFlowTests.
+        cache.clear()
 
     def test_requesting_a_code_stores_only_the_hash(self):
         customer = make_customer()

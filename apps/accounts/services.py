@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from django.conf import settings
 from rest_framework.exceptions import AuthenticationFailed, NotFound, ValidationError
@@ -39,7 +39,7 @@ def _latest_pending_otp(*, purpose: str, agent_id=None, customer_id=None) -> Otp
     otp = qs.first()
     if otp is None:
         raise ValidationError("No pending verification — request a new code")
-    if otp.expires_at < datetime.now(timezone.utc):
+    if otp.expires_at < datetime.now(UTC):
         raise ValidationError("Code expired — request a new one")
     if otp.attempts >= settings.OTP_MAX_ATTEMPTS:
         raise ValidationError("Too many attempts — request a new code")
@@ -53,7 +53,7 @@ def agent_verify_otp(agent_id, code: str) -> tuple[Agent, str]:
         otp.save(update_fields=["attempts"])
         raise ValidationError("Incorrect code")
 
-    otp.consumed_at = datetime.now(timezone.utc)
+    otp.consumed_at = datetime.now(UTC)
     otp.save(update_fields=["consumed_at"])
 
     agent = Agent.objects.get(id=agent_id)
@@ -86,7 +86,7 @@ def customer_verify_otp(customer_id, code: str) -> str:
         otp.save(update_fields=["attempts"])
         raise ValidationError("Incorrect code")
 
-    otp.consumed_at = datetime.now(timezone.utc)
+    otp.consumed_at = datetime.now(UTC)
     otp.save(update_fields=["consumed_at"])
 
     return create_access_token(subject=str(customer_id), role="customer")
@@ -127,6 +127,6 @@ def verify_guest_ticket_otp(email: str, code: str) -> Customer:
         otp.save(update_fields=["attempts"])
         raise ValidationError("Incorrect code")
 
-    otp.consumed_at = datetime.now(timezone.utc)
+    otp.consumed_at = datetime.now(UTC)
     otp.save(update_fields=["consumed_at"])
     return customer
