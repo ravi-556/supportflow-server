@@ -1,6 +1,6 @@
 import hashlib
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
@@ -28,11 +28,11 @@ def verify_otp_hash(code: str, code_hash: str) -> bool:
 
 
 def otp_expiry() -> datetime:
-    return datetime.now(timezone.utc) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
+    return datetime.now(UTC) + timedelta(minutes=settings.OTP_EXPIRE_MINUTES)
 
 
 def create_access_token(*, subject: str, role: str) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": subject,
         "role": role,

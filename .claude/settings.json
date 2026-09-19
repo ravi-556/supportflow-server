@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "mkdir -p .claude/logs && jq -r '.tool_input.command' | { read -r cmd; printf '%s\\t%s\\n' \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\" \"$cmd\" >> .claude/logs/bash-commands.log; }"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "agent",
+            "if": "Bash(git commit *)",
+            "prompt": "A `git commit` is about to run in this repo. Review ONLY the currently staged changes (`git diff --cached`) for clear, serious correctness bugs — not style, not naming, not anything ruff/pre-commit already catches. This is advisory only: never attempt to block, deny, or otherwise stop the commit, no matter what you find. If you find a real bug, output a systemMessage summarizing it concisely (file:line and the specific failure scenario). If the diff looks fine or only has minor nits not worth raising, output a short systemMessage saying so. Keep it under 150 words.",
+            "timeout": 90
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // .tool_response.filePath' | { read -r f; case \"$f\" in *.py) .venv/bin/ruff format \"$f\" 2>/dev/null; .venv/bin/ruff check --fix \"$f\" 2>/dev/null;; esac; } 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}

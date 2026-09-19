@@ -157,9 +157,7 @@ class Message(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="messages")
     description = models.TextField()
     reply_by = models.CharField(max_length=20, choices=ReplyByRole.choices)
-    customer = models.ForeignKey(
-        Customer, null=True, blank=True, on_delete=models.SET_NULL, related_name="messages"
-    )
+    customer = models.ForeignKey(Customer, null=True, blank=True, on_delete=models.SET_NULL, related_name="messages")
     agent = models.ForeignKey(Agent, null=True, blank=True, on_delete=models.SET_NULL, related_name="messages")
     is_private = models.BooleanField(default=False)
     reply_to = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="replies")
@@ -185,9 +183,7 @@ class Message(models.Model):
 class TicketAttachment(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="attachments")
-    message = models.ForeignKey(
-        Message, null=True, blank=True, on_delete=models.CASCADE, related_name="attachments"
-    )
+    message = models.ForeignKey(Message, null=True, blank=True, on_delete=models.CASCADE, related_name="attachments")
     filename = models.CharField(max_length=500)
     size_bytes = models.BigIntegerField(null=True, blank=True)
     mime_type = models.CharField(max_length=200, null=True, blank=True)

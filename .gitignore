@@ -10,3 +10,6 @@ __pycache__/
 
 # Docker
 postgres_data/
+
+# Claude Code
+.claude/logs/
